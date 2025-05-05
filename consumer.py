@@ -12,13 +12,11 @@ MYSQL_CONFIG = {
 
 # Mapeo de colas a tablas
 QUEUE_TABLE_MAPPING = {
-    'queue_preference': 'Preferencias',
-    'queue_servicioxpreferencia': 'ServicioXPreferencia',
-    'queue_turistaxpreferencia': 'TuristaXPreferencias',
-    'queue_services': 'Servicio',
-    'queue_turista': 'Turista',
-    'queue_proveedor': 'Proveedor',
-    'queue_users': 'Usuarios'
+  
+    'queue_busqueda_servicio': 'Provider_Service_Search', #Caso 3
+    'queue_estado_civil': 'Service_Search_By_UserStatus', #Caso 4
+    'my_queue_turistxpreferences': 'User_Interest_Info', #Caso 2
+    'queue_services': 'Service_Location_Info', #Caso 1
 }
 
 # Conexión a MySQL
