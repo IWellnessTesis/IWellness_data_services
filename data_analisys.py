@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 import mysql.connector
 from flask_cors import CORS
 
@@ -13,21 +13,62 @@ def get_db_connection():
         database='db_iwellness'
     )
 
-@app.route('/api/servicios', methods=['GET'])
-def obtener_servicios():
+@app.route('/api/dashboard-proveedor', methods=['GET'])
+def dashboard_proveedor():
+    idProveedor = request.args.get('idProveedor', default=None, type=int)
+    if not idProveedor:
+        return jsonify({'error': 'idProveedor es requerido'}), 400
+
     conn = get_db_connection()
-    query = """
-        SELECT serviceName, coordenadaX, coordenadaY, estado, 
-               CASE WHEN estado = 1 THEN 'Activo' ELSE 'Inactivo' END as estado_texto
-        FROM Service_Location_Info
-    """
     cursor = conn.cursor(dictionary=True)
-    cursor.execute(query)
-    resultados = cursor.fetchall()
+
+    # Total de servicios de este proveedor
+    query_total = "SELECT COUNT(*) as total FROM Service_Location_Info WHERE idProveedor = %s"
+    query_activos = "SELECT COUNT(*) as activos FROM Service_Location_Info WHERE idProveedor = %s AND estado = 1"
+    query_inactivos = "SELECT COUNT(*) as inactivos FROM Service_Location_Info WHERE idProveedor = %s AND estado = 0"
+    query_nombre = "SELECT nombre_empresa FROM Provider_Info WHERE idProveedor = %s"
+
+    cursor.execute(query_total, (idProveedor,))
+    total = cursor.fetchone()['total']
+    cursor.execute(query_activos, (idProveedor,))
+    activos = cursor.fetchone()['activos']
+    cursor.execute(query_inactivos, (idProveedor,))
+    inactivos = cursor.fetchone()['inactivos']
+    cursor.execute(query_nombre, (idProveedor,))
+    nombre_row = cursor.fetchone()
+    nombre = nombre_row['nombre_empresa'] if nombre_row else "Sin nombre"
+
     conn.close()
-    
-    # Devolver los resultados como JSON
-    return jsonify(resultados)
+    return jsonify({
+        'nombre_empresa': nombre,
+        'total_servicios': total,
+        'activos': activos,
+        'inactivos': inactivos
+    })
+
+@app.route('/api/dashboard-admin', methods=['GET'])
+def dashboard_admin():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    query_total = "SELECT COUNT(*) as total FROM Service_Location_Info"
+    query_activos = "SELECT COUNT(*) as activos FROM Service_Location_Info WHERE estado = 1"
+    query_inactivos = "SELECT COUNT(*) as inactivos FROM Service_Location_Info WHERE estado = 0"
+
+    cursor.execute(query_total)
+    total = cursor.fetchone()['total']
+    cursor.execute(query_activos)
+    activos = cursor.fetchone()['activos']
+    cursor.execute(query_inactivos)
+    inactivos = cursor.fetchone()['inactivos']
+
+    conn.close()
+    return jsonify({
+        'nombre_empresa': 'Todos',
+        'total_servicios': total,
+        'activos': activos,
+        'inactivos': inactivos
+    })
 
 @app.route('/api/preferencias-usuario', methods=['GET'])
 def obtener_preferencias_usuario():
@@ -119,13 +160,27 @@ def servicios_mas_solicitados():
 def top_proveedores_activos():
     conn = get_db_connection()
     query = """
-        SELECT p.nombre_empresa, COUNT(*) as total
-        FROM Provider_Info p
-        JOIN Service_Location_Info s ON p.id = s.proveedor_id
-        WHERE s.estado = 1
-        GROUP BY p.nombre_empresa
-        ORDER BY total DESC
-        LIMIT 5
+    SELECT p.nombre_empresa, COUNT(*) as total
+    FROM Provider_Info p
+    JOIN Service_Location_Info s ON p.id = s.idProveedor
+    WHERE s.estado = 1
+    GROUP BY p.nombre_empresa
+    ORDER BY total DESC
+    LIMIT 5
+    """
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(query)
+    resultados = cursor.fetchall()
+    conn.close()
+    return jsonify(resultados)
+
+@app.route('/api/turistas-nacionalidad', methods=['GET'])
+def turistas_por_nacionalidad():
+    conn = get_db_connection()
+    query = """
+        SELECT pais as name, COUNT(*) as value
+        FROM Turist_Info
+        GROUP BY pais
     """
     cursor = conn.cursor(dictionary=True)
     cursor.execute(query)
