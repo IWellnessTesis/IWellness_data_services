@@ -8,6 +8,7 @@ MYSQL_CONFIG = {
     'user': 'root',
     'password': 'root',
     'database': 'db_iwellness'
+    
 }
 
 # Mapeo de colas a tablas
@@ -18,6 +19,7 @@ QUEUE_TABLE_MAPPING = {
     'my_queue_turistxpreferences_estadocivil': 'Service_Search_By_UserStatus', #Caso 4
     'my_queue_turistxpreferences': 'User_Interest_Info', #Caso 2
     'queue_services': 'Service_Location_Info', #Caso 1
+    'queue_reservas': 'Book_Service_Info' #Caso 5
 }
 
 # Conexión a MySQL
@@ -116,11 +118,18 @@ def guardar_en_db(mensaje, queue_name):
         cursor = conn.cursor()
 
         # Preparar la consulta SQL
+       # Construcción dinámica del INSERT ... ON DUPLICATE KEY UPDATE
         columns = ', '.join(data.keys())
-        values = ', '.join(['%s'] * len(data))
-        sql = f"INSERT INTO {QUEUE_TABLE_MAPPING[queue_name]} ({columns}) VALUES ({values})"
-        print(f"📝 SQL a ejecutar: {sql}")
-        print(f"📦 Valores a insertar: {list(data.values())}")
+        values_placeholders = ', '.join(['%s'] * len(data))
+        update_clause = ', '.join([f"{col}=VALUES({col})" for col in data.keys()])
+
+        sql = f"""
+            INSERT INTO {QUEUE_TABLE_MAPPING[queue_name]} ({columns})
+            VALUES ({values_placeholders})
+            ON DUPLICATE KEY UPDATE {update_clause}
+        """
+        valores = list(data.values())
+
 
         # Ejecutar la consulta
         cursor.execute(sql, list(data.values()))

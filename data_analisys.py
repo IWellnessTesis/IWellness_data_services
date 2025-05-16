@@ -188,5 +188,145 @@ def turistas_por_nacionalidad():
     conn.close()
     return jsonify(resultados)
 
+@app.route('/api/reservas', methods=['GET'])
+def obtener_reservas():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    query = """
+        SELECT r.*, s.serviceName
+        FROM Book_Service_Info r
+        LEFT JOIN Service_Location_Info s ON r._idServicio = s.id
+    """
+    cursor.execute(query)
+    resultados = cursor.fetchall()
+    conn.close()
+    return jsonify(resultados)
+
+@app.route('/api/proveedor/total-servicios', methods=['GET'])
+def proveedor_total_servicios():
+    idProveedor = request.args.get('idProveedor', default=None, type=int)
+    if not idProveedor:
+        return jsonify({'error': 'idProveedor es requerido'}), 400
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    query = "SELECT COUNT(*) as total_servicios FROM Service_Location_Info WHERE idProveedor = %s"
+    cursor.execute(query, (idProveedor,))
+    resultado = cursor.fetchone()
+    conn.close()
+    return jsonify(resultado)
+
+@app.route('/api/proveedor/lista-servicios', methods=['GET'])
+def proveedor_lista_servicios():
+    idProveedor = request.args.get('idProveedor', default=None, type=int)
+    if not idProveedor:
+        return jsonify({'error': 'idProveedor es requerido'}), 400
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    query = "SELECT id, serviceName, estado FROM Service_Location_Info WHERE idProveedor = %s"
+    cursor.execute(query, (idProveedor,))
+    resultados = cursor.fetchall()
+    conn.close()
+    return jsonify(resultados)
+
+@app.route('/api/proveedor/total-reservas', methods=['GET'])
+def proveedor_total_reservas():
+    idProveedor = request.args.get('idProveedor', default=None, type=int)
+    if not idProveedor:
+        return jsonify({'error': 'idProveedor es requerido'}), 400
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    query = """
+        SELECT COUNT(*) as total_reservas
+        FROM Book_Service_Info r
+        JOIN Service_Location_Info s ON r._idServicio = s.id
+        WHERE s.idProveedor = %s
+    """
+    cursor.execute(query, (idProveedor,))
+    resultado = cursor.fetchone()
+    conn.close()
+    return jsonify(resultado)
+
+@app.route('/api/proveedor/reservas-por-servicio', methods=['GET'])
+def proveedor_reservas_por_servicio():
+    idProveedor = request.args.get('idProveedor', default=None, type=int)
+    if not idProveedor:
+        return jsonify({'error': 'idProveedor es requerido'}), 400
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    query = """
+        SELECT s.serviceName, COUNT(*) as total_reservas
+        FROM Book_Service_Info r
+        JOIN Service_Location_Info s ON r._idServicio = s.id
+        WHERE s.idProveedor = %s
+        GROUP BY s.serviceName
+        ORDER BY total_reservas DESC
+    """
+    cursor.execute(query, (idProveedor,))
+    resultados = cursor.fetchall()
+    conn.close()
+    return jsonify(resultados)
+
+@app.route('/api/proveedor/reservas-por-estado', methods=['GET'])
+def proveedor_reservas_por_estado():
+    idProveedor = request.args.get('idProveedor', default=None, type=int)
+    if not idProveedor:
+        return jsonify({'error': 'idProveedor es requerido'}), 400
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    query = """
+        SELECT r.estado, COUNT(*) as total
+        FROM Book_Service_Info r
+        JOIN Service_Location_Info s ON r._idServicio = s.id
+        WHERE s.idProveedor = %s
+        GROUP BY r.estado
+    """
+    cursor.execute(query, (idProveedor,))
+    resultados = cursor.fetchall()
+    conn.close()
+    return jsonify(resultados)
+
+@app.route('/api/proveedor/reservas-por-genero', methods=['GET'])
+def proveedor_reservas_por_genero():
+    idProveedor = request.args.get('idProveedor', default=None, type=int)
+    if not idProveedor:
+        return jsonify({'error': 'idProveedor es requerido'}), 400
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    query = """
+        SELECT t.genero, COUNT(*) as total
+        FROM Book_Service_Info r
+        JOIN Service_Location_Info s ON r._idServicio = s.id
+        JOIN Turist_Info t ON r._idTurista = t.id
+        WHERE s.idProveedor = %s
+        GROUP BY t.genero
+    """
+    cursor.execute(query, (idProveedor,))
+    resultados = cursor.fetchall()
+    conn.close()
+    return jsonify(resultados)
+
+@app.route('/api/proveedor/reservas-por-nacionalidad', methods=['GET'])
+def proveedor_reservas_por_nacionalidad():
+    idProveedor = request.args.get('idProveedor', default=None, type=int)
+    if not idProveedor:
+        return jsonify({'error': 'idProveedor es requerido'}), 400
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    query = """
+        SELECT t.pais, COUNT(*) as total
+        FROM Book_Service_Info r
+        JOIN Service_Location_Info s ON r._idServicio = s.id
+        JOIN Turist_Info t ON r._idTurista = t.id
+        WHERE s.idProveedor = %s
+        GROUP BY t.pais
+    """
+    cursor.execute(query, (idProveedor,))
+    resultados = cursor.fetchall()
+    conn.close()
+    return jsonify(resultados)
+
+
+
+
 if __name__ == '__main__':
     app.run(debug=True)
