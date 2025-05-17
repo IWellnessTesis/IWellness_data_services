@@ -117,24 +117,52 @@ def guardar_en_db(mensaje, queue_name):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Preparar la consulta SQL
-       # Construcción dinámica del INSERT ... ON DUPLICATE KEY UPDATE
-        columns = ', '.join(data.keys())
-        values_placeholders = ', '.join(['%s'] * len(data))
-        update_clause = ', '.join([f"{col}=VALUES({col})" for col in data.keys()])
+        # Buscar campo ID
+        id_field = next((k for k in data.keys() if k.lower() in ['serviceid', 'id', '_id', 'idproveedor', '_idturista', '_idservicio']), None)
 
-        sql = f"""
-            INSERT INTO {QUEUE_TABLE_MAPPING[queue_name]} ({columns})
-            VALUES ({values_placeholders})
-            ON DUPLICATE KEY UPDATE {update_clause}
-        """
-        valores = list(data.values())
+        if id_field and data.get(id_field) is not None:
+            select_sql = f"SELECT * FROM {QUEUE_TABLE_MAPPING[queue_name]} WHERE {id_field} = %s"
+            cursor.execute(select_sql, (data[id_field],))
+            existing_records = cursor.fetchall()
+            existing_record = existing_records[0] if existing_records else None
 
+            if existing_record:
+                # UPDATE todos los campos excepto el ID
+                update_fields = [f"{key} = %s" for key in data.keys() if key != id_field]
+                update_values = [value for key, value in data.items() if key != id_field]
+                if update_fields:  # Solo actualiza si hay campos para actualizar
+                    update_sql = f"""
+                        UPDATE {QUEUE_TABLE_MAPPING[queue_name]}
+                        SET {', '.join(update_fields)}
+                        WHERE {id_field} = %s
+                    """
+                    update_values.append(data[id_field])
+                    cursor.execute(update_sql, update_values)
+                    print(f"🔄 Actualizando registro: {update_fields}")
+                else:
+                    print("ℹ️ No hay campos para actualizar.")
+            else:
+                # INSERT si no existe
+                columns = ', '.join(data.keys())
+                values_placeholders = ', '.join(['%s'] * len(data))
+                insert_sql = f"""
+                    INSERT INTO {QUEUE_TABLE_MAPPING[queue_name]} ({columns})
+                    VALUES ({values_placeholders})
+                """
+                cursor.execute(insert_sql, list(data.values()))
+                print("➕ Insertando nuevo registro")
+        else:
+            # Si no hay campo ID, hacer INSERT directo
+            columns = ', '.join(data.keys())
+            values_placeholders = ', '.join(['%s'] * len(data))
+            insert_sql = f"""
+                INSERT INTO {QUEUE_TABLE_MAPPING[queue_name]} ({columns})
+                VALUES ({values_placeholders})
+            """
+            cursor.execute(insert_sql, list(data.values()))
+            print("➕ Insertando nuevo registro (sin campo ID)")
 
-        # Ejecutar la consulta
-        cursor.execute(sql, list(data.values()))
         conn.commit()
-
         print(f"💾 Guardando en MySQL - Tabla {QUEUE_TABLE_MAPPING[queue_name]}: {data}")
         print(f"✅ Guardado exitosamente en MySQL")
 

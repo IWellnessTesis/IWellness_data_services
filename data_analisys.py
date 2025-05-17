@@ -195,7 +195,7 @@ def obtener_reservas():
     query = """
         SELECT r.*, s.serviceName
         FROM Book_Service_Info r
-        LEFT JOIN Service_Location_Info s ON r._idServicio = s.id
+        LEFT JOIN Service_Location_Info s ON r._idServicio = s.serviceid
     """
     cursor.execute(query)
     resultados = cursor.fetchall()
@@ -238,7 +238,7 @@ def proveedor_total_reservas():
     query = """
         SELECT COUNT(*) as total_reservas
         FROM Book_Service_Info r
-        JOIN Service_Location_Info s ON r._idServicio = s.id
+        JOIN Service_Location_Info s ON r._idServicio = s.serviceid
         WHERE s.idProveedor = %s
     """
     cursor.execute(query, (idProveedor,))
@@ -256,7 +256,7 @@ def proveedor_reservas_por_servicio():
     query = """
         SELECT s.serviceName, COUNT(*) as total_reservas
         FROM Book_Service_Info r
-        JOIN Service_Location_Info s ON r._idServicio = s.id
+        JOIN Service_Location_Info s ON r._idServicio = s.serviceid
         WHERE s.idProveedor = %s
         GROUP BY s.serviceName
         ORDER BY total_reservas DESC
@@ -276,7 +276,7 @@ def proveedor_reservas_por_estado():
     query = """
         SELECT r.estado, COUNT(*) as total
         FROM Book_Service_Info r
-        JOIN Service_Location_Info s ON r._idServicio = s.id
+        JOIN Service_Location_Info s ON r._idServicio = s.serviceid
         WHERE s.idProveedor = %s
         GROUP BY r.estado
     """
@@ -295,8 +295,8 @@ def proveedor_reservas_por_genero():
     query = """
         SELECT t.genero, COUNT(*) as total
         FROM Book_Service_Info r
-        JOIN Service_Location_Info s ON r._idServicio = s.id
-        JOIN Turist_Info t ON r._idTurista = t.id
+        JOIN Service_Location_Info s ON r._idServicio = s.serviceid
+        JOIN Turist_Info t ON r._idTurista = t.idTurista
         WHERE s.idProveedor = %s
         GROUP BY t.genero
     """
@@ -315,8 +315,8 @@ def proveedor_reservas_por_nacionalidad():
     query = """
         SELECT t.pais, COUNT(*) as total
         FROM Book_Service_Info r
-        JOIN Service_Location_Info s ON r._idServicio = s.id
-        JOIN Turist_Info t ON r._idTurista = t.id
+        JOIN Service_Location_Info s ON r._idServicio = s.serviceid
+        JOIN Turist_Info t ON r._idTurista = t.idTurista
         WHERE s.idProveedor = %s
         GROUP BY t.pais
     """
@@ -325,7 +325,26 @@ def proveedor_reservas_por_nacionalidad():
     conn.close()
     return jsonify(resultados)
 
-
+@app.route('/api/proveedor/reservas-por-estado-civil', methods=['GET'])
+def proveedor_reservas_por_estado_civil():
+    idProveedor = request.args.get('idProveedor', default=None, type=int)
+    if not idProveedor:
+        return jsonify({'error': 'idProveedor es requerido'}), 400
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    query = """
+        SELECT t.estadoCivil, COUNT(*) as total
+        FROM Book_Service_Info r
+        JOIN Service_Location_Info s ON r._idServicio = s.serviceid
+        JOIN Turist_Info t ON r._idTurista = t.idTurista
+        WHERE s.idProveedor = %s
+        GROUP BY t.estadoCivil
+        ORDER BY total DESC
+    """
+    cursor.execute(query, (idProveedor,))
+    resultados = cursor.fetchall()
+    conn.close()
+    return jsonify(resultados)
 
 
 if __name__ == '__main__':
